@@ -23,8 +23,15 @@ require_relative "slack_outbox/multi_file_wrapper"
 
 module SlackOutbox
   class << self
-    def register_profile(name, config)
-      ProfileRegistry.register(name, config)
+    def register(name = nil, **config)
+      if name.nil? || name == :default
+        # No positional arg or :default - register as :default and set it as default
+        ProfileRegistry.default_profile = :default
+        ProfileRegistry.register(:default, config)
+      else
+        # Other name - register named profile (existing behavior)
+        ProfileRegistry.register(name, config)
+      end
     end
 
     def profile(name)
@@ -39,20 +46,16 @@ module SlackOutbox
       ProfileRegistry.default_profile = name
     end
 
-    def deliver(**kwargs) # rubocop:disable Naming/PredicateMethod
-      if kwargs[:files].present?
-        multi_file_wrapper = MultiFileWrapper.new(kwargs[:files])
-        max_size = config.max_background_file_size
-        if max_size && multi_file_wrapper.total_file_size > max_size
-          raise Error, "Total file size (#{multi_file_wrapper.total_file_size} bytes) exceeds configured limit (#{max_size} bytes) for background jobs"
-        end
-      end
-      DeliveryAxn.call_async(profile: default_profile, **kwargs)
-      true
+    def deliver(**)
+      raise Error, "No default profile set. Call SlackOutbox.register(...) first" if default_profile.nil?
+
+      default_profile.deliver(**)
     end
 
     def deliver!(**)
-      DeliveryAxn.call!(profile: default_profile, **).thread_ts
+      raise Error, "No default profile set. Call SlackOutbox.register(...) first" if default_profile.nil?
+
+      default_profile.deliver!(**)
     end
   end
 end

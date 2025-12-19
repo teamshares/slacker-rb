@@ -14,8 +14,7 @@ module SlackOutbox
       end
     end
 
-    attr_accessor :error_notifier
-    attr_accessor :max_background_file_size
+    attr_accessor :error_notifier, :max_background_file_size
   end
 
   class << self
