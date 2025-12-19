@@ -22,6 +22,33 @@ module SlackOutbox
 
     exposes :thread_ts, type: String
 
+    async :sidekiq, retry: 5, dead: false
+
+    sidekiq_retry_in do |_count, exception|
+      # Discard known-do-not-retry exceptions
+      return :discard if exception.is_a?(::Slack::Web::Api::Errors::NotInChannel)
+      return :discard if exception.is_a?(::Slack::Web::Api::Errors::ChannelNotFound)
+
+      # Check for retry headers from Slack (e.g., rate limits)
+      if exception.respond_to?(:response_headers) && exception.response_headers.is_a?(Hash)
+        retry_after = exception.response_headers["Retry-After"] || exception.response_headers["retry-after"]
+        return retry_after.to_i if retry_after.present?
+      end
+
+      # Default: let Sidekiq use its default retry behavior
+      nil
+    end
+
+    on_exception(if: ::Slack::Web::Api::Errors::NotInChannel) do
+      handle_not_in_channel
+      # Exception will propagate; sidekiq_retry_in returns :discard, so no retries
+    end
+
+    on_exception(if: ::Slack::Web::Api::Errors::ChannelNotFound) do
+      handle_channel_not_found
+      # Exception will propagate; sidekiq_retry_in returns :discard, so no retries
+    end
+
     before do
       # Resolve channel symbol to ID using profile's channels
       @resolved_channel = resolve_channel(channel)
@@ -37,21 +64,8 @@ module SlackOutbox
       end
     end
 
-    async :sidekiq, retry: 5, dead: false
-
     def call
-      if files.present?
-        upload_files
-      else
-        post_message
-      end
-    rescue ::Slack::Web::Api::Errors::NotInChannel
-      handle_not_in_channel
-      raise # Re-raise; sidekiq_retry_in returns :discard, so no retries
-    rescue ::Slack::Web::Api::Errors::ChannelNotFound
-      handle_channel_not_found
-      raise # Re-raise; sidekiq_retry_in returns :discard, so no retries
-      # All other errors pass through for Sidekiq retry (up to 5 times)
+      files.present? ? upload_files : post_message
     end
 
     def self.format_group_mention(profile, key, non_production = nil)
@@ -201,4 +215,3 @@ module SlackOutbox
     end
   end
 end
-
