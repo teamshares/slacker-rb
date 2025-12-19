@@ -8,11 +8,10 @@ RSpec.describe SlackOutbox::ProfileRegistry do
   describe ".register" do
     it "registers a profile with the given name" do
       profile = described_class.register(:test_profile,
-        token: "TEST_TOKEN",
-        dev_channel: "C123",
-        channels: {},
-        user_groups: {}
-      )
+                                         token: "TEST_TOKEN",
+                                         dev_channel: "C123",
+                                         channels: {},
+                                         user_groups: {})
 
       expect(profile).to be_a(SlackOutbox::Profile)
       expect(described_class.find(:test_profile)).to eq(profile)
@@ -20,41 +19,37 @@ RSpec.describe SlackOutbox::ProfileRegistry do
 
     it "allows dev_channel to be nil" do
       profile = described_class.register(:test_profile,
-        token: "TEST_TOKEN",
-        channels: {},
-        user_groups: {}
-      )
+                                         token: "TEST_TOKEN",
+                                         channels: {},
+                                         user_groups: {})
 
       expect(profile.dev_channel).to be_nil
     end
 
     it "raises error if profile already exists" do
       described_class.register(:test_profile,
-        token: "TEST_TOKEN",
-        dev_channel: "C123",
-        channels: {},
-        user_groups: {}
-      )
+                               token: "TEST_TOKEN",
+                               dev_channel: "C123",
+                               channels: {},
+                               user_groups: {})
 
-      expect {
+      expect do
         described_class.register(:test_profile,
-          token: "OTHER_TOKEN",
-          dev_channel: "C456",
-          channels: {},
-          user_groups: {}
-        )
-      }.to raise_error(SlackOutbox::DuplicateProfileError, /already registered/)
+                                 token: "OTHER_TOKEN",
+                                 dev_channel: "C456",
+                                 channels: {},
+                                 user_groups: {})
+      end.to raise_error(SlackOutbox::DuplicateProfileError, /already registered/)
     end
   end
 
   describe ".find" do
     before do
       described_class.register(:test_profile,
-        token: "TEST_TOKEN",
-        dev_channel: "C123",
-        channels: {},
-        user_groups: {}
-      )
+                               token: "TEST_TOKEN",
+                               dev_channel: "C123",
+                               channels: {},
+                               user_groups: {})
     end
 
     it "finds a registered profile" do
@@ -64,21 +59,21 @@ RSpec.describe SlackOutbox::ProfileRegistry do
     end
 
     it "raises error if profile not found" do
-      expect {
+      expect do
         described_class.find(:nonexistent)
-      }.to raise_error(SlackOutbox::ProfileNotFound, /not found/)
+      end.to raise_error(SlackOutbox::ProfileNotFound, /not found/)
     end
 
     it "raises error if name is nil" do
-      expect {
+      expect do
         described_class.find(nil)
-      }.to raise_error(SlackOutbox::ProfileNotFound, /cannot be nil/)
+      end.to raise_error(SlackOutbox::ProfileNotFound, /cannot be nil/)
     end
 
     it "raises error if name is empty" do
-      expect {
+      expect do
         described_class.find("")
-      }.to raise_error(SlackOutbox::ProfileNotFound, /cannot be empty/)
+      end.to raise_error(SlackOutbox::ProfileNotFound, /cannot be empty/)
     end
   end
 
@@ -86,11 +81,10 @@ RSpec.describe SlackOutbox::ProfileRegistry do
     context "when default_profile_name is set" do
       before do
         described_class.register(:test_profile,
-          token: "TEST_TOKEN",
-          dev_channel: "C123",
-          channels: {},
-          user_groups: {}
-        )
+                                 token: "TEST_TOKEN",
+                                 dev_channel: "C123",
+                                 channels: {},
+                                 user_groups: {})
         described_class.default_profile = :test_profile
       end
 
@@ -106,7 +100,7 @@ RSpec.describe SlackOutbox::ProfileRegistry do
           token: "DEFAULT_TOKEN",
           dev_channel: "C999",
           channels: {},
-          user_groups: {}
+          user_groups: {},
         )
       end
 
@@ -136,7 +130,7 @@ RSpec.describe SlackOutbox::ProfileRegistry do
         token: "DEFAULT_TOKEN",
         dev_channel: "C999",
         channels: {},
-        user_groups: {}
+        user_groups: {},
       )
 
       expect(profile).to be_a(SlackOutbox::Profile)
@@ -148,14 +142,14 @@ RSpec.describe SlackOutbox::ProfileRegistry do
         token: "DEFAULT_TOKEN",
         dev_channel: "C999",
         channels: {},
-        user_groups: {}
+        user_groups: {},
       )
 
       profile2 = described_class.register_default(
         token: "OTHER_TOKEN",
         dev_channel: "C888",
         channels: {},
-        user_groups: {}
+        user_groups: {},
       )
 
       expect(profile1).to eq(profile2)
@@ -165,17 +159,16 @@ RSpec.describe SlackOutbox::ProfileRegistry do
   describe ".clear!" do
     before do
       described_class.register(:test_profile,
-        token: "TEST_TOKEN",
-        dev_channel: "C123",
-        channels: {},
-        user_groups: {}
-      )
+                               token: "TEST_TOKEN",
+                               dev_channel: "C123",
+                               channels: {},
+                               user_groups: {})
       described_class.default_profile = :test_profile
       described_class.register_default(
         token: "DEFAULT_TOKEN",
         dev_channel: "C999",
         channels: {},
-        user_groups: {}
+        user_groups: {},
       )
     end
 
@@ -186,4 +179,3 @@ RSpec.describe SlackOutbox::ProfileRegistry do
     end
   end
 end
-

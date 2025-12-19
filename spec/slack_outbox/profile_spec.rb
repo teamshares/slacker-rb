@@ -7,7 +7,7 @@ RSpec.describe SlackOutbox::Profile do
       dev_channel: "C01H3KU3B9P",
       error_channel: "C03F1DMJ4PM",
       channels: { slack_development: "C01H3KU3B9P" },
-      user_groups: { slack_development: "S123" }
+      user_groups: { slack_development: "S123" },
     )
   end
 
@@ -30,7 +30,7 @@ RSpec.describe SlackOutbox::Profile do
           token: "SLACK_API_TOKEN",
           dev_channel: nil,
           channels: {},
-          user_groups: {}
+          user_groups: {},
         )
       end
 
@@ -42,7 +42,7 @@ RSpec.describe SlackOutbox::Profile do
 
   describe "#deliver" do
     it "calls DeliveryAxn.call_async with profile" do
-      expect(SlackOutbox::DeliveryAxn).to receive(:call_async).with(profile: profile, channel: "C123", text: "test")
+      expect(SlackOutbox::DeliveryAxn).to receive(:call_async).with(profile:, channel: "C123", text: "test")
       profile.deliver(channel: "C123", text: "test")
     end
 
@@ -56,9 +56,8 @@ RSpec.describe SlackOutbox::Profile do
     let(:result) { instance_double("Result", thread_ts: "123.456") }
 
     it "calls DeliveryAxn.call! with profile" do
-      expect(SlackOutbox::DeliveryAxn).to receive(:call!).with(profile: profile, channel: "C123", text: "test").and_return(result)
+      expect(SlackOutbox::DeliveryAxn).to receive(:call!).with(profile:, channel: "C123", text: "test").and_return(result)
       expect(profile.deliver!(channel: "C123", text: "test")).to eq("123.456")
     end
   end
 end
-

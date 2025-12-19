@@ -10,14 +10,17 @@ end
 require "axn"
 require_relative "slack_outbox/version"
 require_relative "slack_outbox/configuration"
+
+module SlackOutbox
+  class Error < StandardError; end
+end
+
 require_relative "slack_outbox/profile"
 require_relative "slack_outbox/profile_registry"
 require_relative "slack_outbox/delivery_axn"
 require_relative "slack_outbox/file_wrapper"
 
 module SlackOutbox
-  class Error < StandardError; end
-
   class << self
     def register_profile(name, config)
       ProfileRegistry.register(name, config)

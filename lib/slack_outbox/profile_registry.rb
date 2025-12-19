@@ -38,7 +38,7 @@ module SlackOutbox
 
       def register_default(config)
         # For single-profile use cases - creates an anonymous default profile
-        @default_profile = Profile.new(**config) unless @default_profile
+        @default_profile ||= Profile.new(**config)
         @default_profile
       end
 
@@ -50,4 +50,3 @@ module SlackOutbox
     end
   end
 end
-

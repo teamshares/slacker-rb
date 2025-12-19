@@ -12,14 +12,13 @@ module SlackOutbox
       @user_groups = user_groups.freeze
     end
 
-    def deliver(**kwargs)
-      DeliveryAxn.call_async(profile: self, **kwargs)
+    def deliver(**) # rubocop:disable Naming/PredicateMethod
+      DeliveryAxn.call_async(profile: self, **)
       true
     end
 
-    def deliver!(**kwargs)
-      DeliveryAxn.call!(profile: self, **kwargs).thread_ts
+    def deliver!(**)
+      DeliveryAxn.call!(profile: self, **).thread_ts
     end
   end
 end
-

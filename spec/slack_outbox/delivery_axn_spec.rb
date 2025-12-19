@@ -12,7 +12,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
       },
       user_groups: {
         slack_development: "SLACK_DEV_TEST_USER_GROUP_HANDLE",
-      }
+      },
     )
   end
   let(:action_class) { SlackOutbox::DeliveryAxn }
@@ -34,7 +34,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
       end
 
       context "with symbol channel key" do
-        subject(:result) { action_class.call(profile: profile, channel: :slack_development, text:) }
+        subject(:result) { action_class.call(profile:, channel: :slack_development, text:) }
 
         it "resolves to channel ID" do
           expect(client_dbl).to receive(:chat_postMessage).with(
@@ -46,7 +46,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
       end
 
       context "with unknown symbol channel key" do
-        subject(:result) { action_class.call(profile: profile, channel: :unknown_channel, text:) }
+        subject(:result) { action_class.call(profile:, channel: :unknown_channel, text:) }
 
         it "fails with preprocessing error" do
           expect(result).not_to be_ok
@@ -55,7 +55,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
       end
 
       context "with string channel ID" do
-        subject(:result) { action_class.call(profile: profile, channel: "C123456", text:) }
+        subject(:result) { action_class.call(profile:, channel: "C123456", text:) }
 
         it "uses the channel ID directly" do
           expect(client_dbl).to receive(:chat_postMessage).with(
@@ -73,7 +73,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
       end
 
       context "with markdown text" do
-        subject(:result) { action_class.call(profile: profile, channel:, text: "Hello *world*") }
+        subject(:result) { action_class.call(profile:, channel:, text: "Hello *world*") }
 
         it "formats text using Slack markdown formatting" do
           expect(Slack::Messages::Formatting).to receive(:markdown).with("Hello *world*").and_call_original
@@ -82,7 +82,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
       end
 
       context "with nil text" do
-        subject(:result) { action_class.call(profile: profile, channel:, text: nil) }
+        subject(:result) { action_class.call(profile:, channel:, text: nil) }
 
         it "fails without other content" do
           expect(result).not_to be_ok
@@ -92,7 +92,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
     end
 
     describe "icon_emoji preprocessing" do
-      subject(:result) { action_class.call(profile: profile, channel:, text:, icon_emoji:) }
+      subject(:result) { action_class.call(profile:, channel:, text:, icon_emoji:) }
 
       before do
         allow(SlackOutbox.config).to receive(:in_production?).and_return(true)
@@ -135,7 +135,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
 
   describe "validation (before block)" do
     context "when content is blank" do
-      subject(:result) { action_class.call(profile: profile, channel:) }
+      subject(:result) { action_class.call(profile:, channel:) }
 
       it "fails with error message" do
         expect(result).not_to be_ok
@@ -144,7 +144,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
     end
 
     context "when blocks are invalid" do
-      subject(:result) { action_class.call(profile: profile, channel:, blocks:) }
+      subject(:result) { action_class.call(profile:, channel:, blocks:) }
 
       context "with empty array" do
         let(:blocks) { [] }
@@ -192,7 +192,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
       end
 
       context "with blocks" do
-        subject(:result) { action_class.call(profile: profile, channel:, files:, blocks: [{ type: "section" }]) }
+        subject(:result) { action_class.call(profile:, channel:, files:, blocks: [{ type: "section" }]) }
 
         it "fails with error message" do
           expect(result).not_to be_ok
@@ -201,7 +201,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
       end
 
       context "with attachments" do
-        subject(:result) { action_class.call(profile: profile, channel:, files:, attachments: [{ color: "good" }]) }
+        subject(:result) { action_class.call(profile:, channel:, files:, attachments: [{ color: "good" }]) }
 
         it "fails with error message" do
           expect(result).not_to be_ok
@@ -210,7 +210,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
       end
 
       context "with icon_emoji" do
-        subject(:result) { action_class.call(profile: profile, channel:, files:, icon_emoji: "robot") }
+        subject(:result) { action_class.call(profile:, channel:, files:, icon_emoji: "robot") }
 
         it "fails with error message" do
           expect(result).not_to be_ok
@@ -219,7 +219,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
       end
 
       context "with text only" do
-        subject(:result) { action_class.call(profile: profile, channel:, files:, text:) }
+        subject(:result) { action_class.call(profile:, channel:, files:, text:) }
 
         before do
           allow(SlackOutbox.config).to receive(:in_production?).and_return(true)
@@ -234,7 +234,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
 
   describe "#call" do
     describe "posting messages" do
-      subject(:result) { action_class.call(profile: profile, channel:, text:, blocks:, attachments:, icon_emoji:, thread_ts:) }
+      subject(:result) { action_class.call(profile:, channel:, text:, blocks:, attachments:, icon_emoji:, thread_ts:) }
 
       let(:blocks) { nil }
       let(:attachments) { nil }
@@ -285,7 +285,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
     end
 
     describe "uploading files" do
-      subject(:result) { action_class.call(profile: profile, channel:, files:, text: "File attached") }
+      subject(:result) { action_class.call(profile:, channel:, files:, text: "File attached") }
 
       let(:file) { Tempfile.new(["test", ".txt"]) }
       let(:files) { [file] }
@@ -338,7 +338,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
       end
 
       context "when NotInChannel error occurs" do
-        subject(:result) { action_class.call!(profile: profile, channel:, text:) }
+        subject(:result) { action_class.call!(profile:, channel:, text:) }
 
         it "sends error notification and re-raises" do
           error_channel = profile.channels[:eng_alerts]
@@ -358,7 +358,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
       end
 
       context "when ChannelNotFound error occurs" do
-        subject(:result) { action_class.call!(profile: profile, channel:, text:) }
+        subject(:result) { action_class.call!(profile:, channel:, text:) }
 
         it "sends error notification and re-raises" do
           call_count = 0
@@ -374,7 +374,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
       end
 
       context "when error_channel is same as target channel" do
-        subject(:result) { action_class.call!(profile: profile, channel: profile.channels[:eng_alerts], text:) }
+        subject(:result) { action_class.call!(profile:, channel: profile.channels[:eng_alerts], text:) }
 
         it "does not attempt recursive error notification" do
           allow(client_dbl).to receive(:chat_postMessage).and_raise(
@@ -395,7 +395,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
             dev_channel: "C01H3KU3B9P",
             error_channel: nil,
             channels: { slack_development: "C01H3KU3B9P" },
-            user_groups: {}
+            user_groups: {},
           )
         end
         subject(:result) { action_class.call!(profile: profile_without_error_channel, channel:, text:) }
@@ -448,7 +448,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
   end
 
   describe "test_message_wrapper" do
-    subject(:result) { action_class.call(profile: profile, channel:, text: "Line 1\nLine 2\nLine 3") }
+    subject(:result) { action_class.call(profile:, channel:, text: "Line 1\nLine 2\nLine 3") }
 
     before do
       allow(SlackOutbox.config).to receive(:in_production?).and_return(false)
