@@ -19,9 +19,7 @@ require_relative "slack_outbox/health_insurance"
 
 module SlackOutbox
   class Error < StandardError; end
-end
 
-class SlackOutbox
   class << self
     def deliver(**) # rubocop:disable Naming/PredicateMethod
       implementor.call_async(**)
@@ -38,14 +36,42 @@ class SlackOutbox
   end
 end
 
-class SlackOutbox::Mfp < SlackOutbox
-  def self.implementor = SlackOutbox::Mfp
+# Add deliver/deliver! methods to implementation classes for convenient API access
+class SlackOutbox::Mfp
+  class << self
+    def deliver(**)
+      call_async(**)
+      true
+    end
+
+    def deliver!(**)
+      call!(**).thread_ts
+    end
+  end
 end
 
-class SlackOutbox::NetworkPresident < SlackOutbox
-  def self.implementor = SlackOutbox::NetworkPresident
+class SlackOutbox::NetworkPresident
+  class << self
+    def deliver(**)
+      call_async(**)
+      true
+    end
+
+    def deliver!(**)
+      call!(**).thread_ts
+    end
+  end
 end
 
-class SlackOutbox::HealthInsurance < SlackOutbox
-  def self.implementor = SlackOutbox::HealthInsurance
+class SlackOutbox::HealthInsurance
+  class << self
+    def deliver(**)
+      call_async(**)
+      true
+    end
+
+    def deliver!(**)
+      call!(**).thread_ts
+    end
+  end
 end
