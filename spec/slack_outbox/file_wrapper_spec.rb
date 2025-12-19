@@ -232,4 +232,3 @@ RSpec.describe SlackOutbox::FileWrapper do
     end
   end
 end
-

@@ -88,8 +88,13 @@ module SlackOutbox
     # Profile configs
 
     def slack_client_config = profile.slack_client_config
-    def dev_channel = profile.dev_channel
     def error_channel = profile.error_channel
+    def dev_channel = profile.dev_channel
+    def default_dev_channel_redirect_prefix = "_:test_tube: This is a test. Would have been sent to %s in production. :test_tube:"
+
+    def dev_channel_redirect_prefix
+      format(profile.dev_channel_redirect_prefix.presence || default_dev_channel_redirect_prefix, channel_display)
+    end
 
     # Core sending methods
 
@@ -146,27 +151,27 @@ module SlackOutbox
       false
     end
 
-    # Implementation helpers - environmentally-aware handling
+    # Implementation helpers - contextually-aware handling
+
+    def redirect_to_dev_channel? = dev_channel.present? && !SlackOutbox.config.in_production?
+    def channel_display = is_channel_id?(@resolved_channel) ? Slack::Messages::Formatting.channel_link(@resolved_channel) : "`<##{@resolved_channel}`"
+
+    # TODO: this is directionally correct, but more-correct would involve conversations.list
+    def is_channel_id?(given) = given[0] != "#" && given.match?(/\A[CGD][A-Z0-9]+\z/) # rubocop:disable Naming/PredicatePrefix
 
     # TODO: just use memo once we update Axn
-    def channel_to_use
-      return @resolved_channel if SlackOutbox.config.in_production?
-      return dev_channel if dev_channel.present?
-
-      @resolved_channel
-    end
+    def channel_to_use = redirect_to_dev_channel? ? dev_channel : @resolved_channel
 
     # TODO: just use memo once we update Axn
     def text_to_use
-      return text if SlackOutbox.config.in_production? || dev_channel.blank?
+      return text unless redirect_to_dev_channel?
 
-      formatted_message = text.lines.map { |line| "> #{line}" }.join
+      formatted_message = text&.lines&.map { |line| "> #{line}" }&.join
 
-      <<~TEXT.strip
-        _:test_tube: This is a test. Would have been sent to <##{@resolved_channel}> in production. :test_tube:_
-
-        #{formatted_message}
-      TEXT
+      [
+        dev_channel_redirect_prefix,
+        formatted_message,
+      ].compact_blank.join("\n\n")
     end
 
     # Implementation helpers - sending errors

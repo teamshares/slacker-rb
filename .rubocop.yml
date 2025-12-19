@@ -70,3 +70,6 @@ Metrics/AbcSize:
 
 Metrics/CyclomaticComplexity:
   Max: 20
+
+Metrics/ParameterLists:
+  Max: 10

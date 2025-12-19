@@ -40,6 +40,38 @@ RSpec.describe SlackOutbox::Profile do
     end
   end
 
+  describe "#dev_channel_redirect_prefix" do
+    context "when dev_channel_redirect_prefix is provided" do
+      let(:profile) do
+        described_class.new(
+          token: "SLACK_API_TOKEN",
+          dev_channel_redirect_prefix: "Custom prefix: %s",
+          channels: {},
+          user_groups: {},
+        )
+      end
+
+      it "returns the dev_channel_redirect_prefix value" do
+        expect(profile.dev_channel_redirect_prefix).to eq("Custom prefix: %s")
+      end
+    end
+
+    context "when dev_channel_redirect_prefix is nil" do
+      let(:profile) do
+        described_class.new(
+          token: "SLACK_API_TOKEN",
+          dev_channel_redirect_prefix: nil,
+          channels: {},
+          user_groups: {},
+        )
+      end
+
+      it "returns nil" do
+        expect(profile.dev_channel_redirect_prefix).to be_nil
+      end
+    end
+  end
+
   describe "#deliver" do
     it "calls DeliveryAxn.call_async with profile" do
       expect(SlackOutbox::DeliveryAxn).to receive(:call_async).with(profile:, channel: "C123", text: "test")

@@ -281,6 +281,37 @@ RSpec.describe SlackOutbox::DeliveryAxn do
 
           expect(result).to be_ok
         end
+
+        context "with custom dev_channel_redirect_prefix" do
+          let(:profile) do
+            SlackOutbox::Profile.new(
+              token: "SLACK_API_TOKEN",
+              dev_channel: "C01H3KU3B9P",
+              error_channel: "C03F1DMJ4PM",
+              channels: {
+                slack_development: "C01H3KU3B9P",
+                eng_alerts: "C03F1DMJ4PM",
+              },
+              user_groups: {
+                slack_development: "SLACK_DEV_TEST_USER_GROUP_HANDLE",
+              },
+              dev_channel_redirect_prefix: "🚧 DEV MODE: Would have gone to %s 🚧",
+            )
+          end
+
+          it "uses custom prefix and formats channel_display correctly" do
+            expect(client_dbl).to receive(:chat_postMessage).with(
+              channel: profile.channels[:slack_development],
+              text: a_string_matching(/🚧 DEV MODE: Would have gone to.*#{channel}.*🚧/m),
+              blocks: nil,
+              attachments: nil,
+              icon_emoji: nil,
+              thread_ts: nil,
+            )
+
+            expect(result).to be_ok
+          end
+        end
       end
     end
 
@@ -462,6 +493,48 @@ RSpec.describe SlackOutbox::DeliveryAxn do
       )
 
       expect(result).to be_ok
+    end
+
+    context "with channel ID" do
+      let(:channel) { "C123456" }
+
+      it "replaces %s in dev_channel_redirect_prefix with channel link" do
+        expect(client_dbl).to receive(:chat_postMessage).with(
+          hash_including(
+            text: a_string_matching(/Would have been sent to <#C123456> in production/m),
+          ),
+        )
+
+        expect(result).to be_ok
+      end
+    end
+
+    context "with custom dev_channel_redirect_prefix" do
+      let(:profile) do
+        SlackOutbox::Profile.new(
+          token: "SLACK_API_TOKEN",
+          dev_channel: "C01H3KU3B9P",
+          error_channel: "C03F1DMJ4PM",
+          channels: {
+            slack_development: "C01H3KU3B9P",
+            eng_alerts: "C03F1DMJ4PM",
+          },
+          user_groups: {
+            slack_development: "SLACK_DEV_TEST_USER_GROUP_HANDLE",
+          },
+          dev_channel_redirect_prefix: "Test prefix with %s replacement",
+        )
+      end
+
+      it "replaces %s with channel_display value" do
+        expect(client_dbl).to receive(:chat_postMessage).with(
+          hash_including(
+            text: a_string_matching(/Test prefix with.*#{channel}.*replacement/m),
+          ),
+        )
+
+        expect(result).to be_ok
+      end
     end
   end
 end
