@@ -15,14 +15,16 @@ module SlackOutbox
     end
 
     def deliver(**kwargs) # rubocop:disable Naming/PredicateMethod
+      # Only relevant before we send to the backend -- avoid filling redis with large files
       if kwargs[:files].present?
-        multi_file_wrapper = MultiFileWrapper.new(kwargs[:files])
+        total_file_size = MultiFileWrapper.new(kwargs[:files]).total_file_size
         max_size = SlackOutbox.config.max_background_file_size
-        if max_size && multi_file_wrapper.total_file_size > max_size
-          raise SlackOutbox::Error,
-                "Total file size (#{multi_file_wrapper.total_file_size} bytes) exceeds configured limit (#{max_size} bytes) for background jobs"
+
+        if max_size && total_file_size > max_size
+          raise Error, "Total file size (#{total_file_size} bytes) exceeds configured limit (#{max_size} bytes) for background jobs"
         end
       end
+
       DeliveryAxn.call_async(profile: self, **kwargs)
       true
     end
