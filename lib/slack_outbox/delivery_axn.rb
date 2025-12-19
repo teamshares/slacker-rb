@@ -1,24 +1,10 @@
 # frozen_string_literal: true
 
 module SlackOutbox
-  class Base
-    CHANNELS = {}.freeze
-    USER_GROUPS = {}.freeze
-
-    def self.format_group_mention(key, non_production = nil)
-      group_id = if key.is_a?(Symbol)
-                   self::USER_GROUPS[key] || raise("Unknown user group: #{key}")
-                 else
-                   key
-                 end
-
-      group_id = non_production.presence || self::USER_GROUPS[:slack_development] unless SlackOutbox.config.in_production?
-
-      ::Slack::Messages::Formatting.group_link(group_id)
-    end
-
+  class DeliveryAxn
     include Axn
 
+    expects :profile, type: Profile
     expects :channel # Symbol or String - resolved in before block
     expects :text, type: String, optional: true, preprocess: lambda { |txt|
       ::Slack::Messages::Formatting.markdown(txt) if txt.present?
@@ -37,7 +23,7 @@ module SlackOutbox
     exposes :thread_ts, type: String
 
     before do
-      # Resolve channel symbol to ID using subclass's CHANNELS constant
+      # Resolve channel symbol to ID using profile's channels
       @resolved_channel = resolve_channel(channel)
       fail! "channel must resolve to a String" unless @resolved_channel.is_a?(String)
 
@@ -68,25 +54,35 @@ module SlackOutbox
       # All other errors pass through for Sidekiq retry (up to 5 times)
     end
 
+    def self.format_group_mention(profile, key, non_production = nil)
+      group_id = if key.is_a?(Symbol)
+                   profile.user_groups[key] || raise("Unknown user group: #{key}")
+                 else
+                   key
+                 end
+
+      group_id = non_production.presence || profile.user_groups[:slack_development] unless SlackOutbox.config.in_production?
+
+      ::Slack::Messages::Formatting.group_link(group_id)
+    end
+
     private
 
-    # Overridable configuration methods
-    def slack_token = raise NotImplemented, "Subclasses must implement #slack_token"
     def slack_client_config = {}
-    def dev_channel = raise NotImplemented, "Subclasses must implement #dev_channel"
-    def error_channel = nil
+    def dev_channel = profile.dev_channel
+    def error_channel = profile.error_channel
 
     # Implementation helpers
     def resolve_channel(raw)
       return raw unless raw.is_a?(Symbol)
 
-      self.class::CHANNELS[raw] || fail!("Unknown channel: #{raw}")
+      profile.channels[raw] || fail!("Unknown channel: #{raw}")
     end
 
     def content_blank? = text.blank? && blocks.blank? && attachments.blank? && files.blank?
 
     # TODO: just use memo once we update Axn
-    def client = @client ||= ::Slack::Web::Client.new(slack_client_config.merge(token: slack_token))
+    def client = @client ||= ::Slack::Web::Client.new(slack_client_config.merge(token: profile.token))
 
     def upload_files
       file_uploads = files.map(&:to_h)
@@ -129,7 +125,12 @@ module SlackOutbox
       false
     end
 
-    def channel_for_environment = SlackOutbox.config.in_production? ? @resolved_channel : dev_channel
+    def channel_for_environment
+      return @resolved_channel if SlackOutbox.config.in_production?
+      return dev_channel if dev_channel.present?
+
+      @resolved_channel
+    end
 
     def text_for_environment
       return text if SlackOutbox.config.in_production?
@@ -189,7 +190,7 @@ module SlackOutbox
       return if @resolved_channel == error_channel
 
       # Send directly, don't use call_async to avoid Sidekiq queue
-      self.class.call!(channel: error_channel, text: message)
+      self.class.call!(profile:, channel: error_channel, text: message)
     rescue StandardError => e
       # Last resort: notify error notifier if configured, otherwise Honeybadger if available
       if SlackOutbox.config.error_notifier
