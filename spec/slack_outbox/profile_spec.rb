@@ -12,8 +12,49 @@ RSpec.describe SlackOutbox::Profile do
   end
 
   describe "#token" do
-    it "returns the token value" do
-      expect(profile.token).to eq("SLACK_API_TOKEN")
+    context "when token is a string" do
+      it "returns the token value" do
+        expect(profile.token).to eq("SLACK_API_TOKEN")
+      end
+    end
+
+    context "when token is a callable" do
+      let(:profile) do
+        described_class.new(
+          token: -> { ENV.fetch("SLACK_API_TOKEN") },
+          dev_channel: "C01H3KU3B9P",
+          error_channel: "C03F1DMJ4PM",
+          channels: { slack_development: "C01H3KU3B9P" },
+          user_groups: { slack_development: "S123" },
+        )
+      end
+
+      it "calls the callable and returns the result" do
+        allow(ENV).to receive(:fetch).with("SLACK_API_TOKEN").and_return("xoxb-lazy-token")
+        expect(profile.token).to eq("xoxb-lazy-token")
+      end
+
+      it "memoizes the result and only evaluates the callable once" do
+        call_count = 0
+        token_proc = lambda {
+          call_count += 1
+          "token-#{call_count}"
+        }
+        profile_with_proc = described_class.new(
+          token: token_proc,
+          channels: {},
+          user_groups: {},
+        )
+
+        expect(profile_with_proc.token).to eq("token-1")
+        expect(profile_with_proc.token).to eq("token-1")
+        expect(call_count).to eq(1)
+      end
+
+      it "raises error if callable raises error (e.g., missing ENV var)" do
+        allow(ENV).to receive(:fetch).with("SLACK_API_TOKEN").and_raise(KeyError.new("key not found: \"SLACK_API_TOKEN\""))
+        expect { profile.token }.to raise_error(KeyError, /SLACK_API_TOKEN/)
+      end
     end
   end
 

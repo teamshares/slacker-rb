@@ -2,7 +2,7 @@
 
 module SlackOutbox
   class Profile
-    attr_reader :token, :dev_channel, :error_channel, :channels, :user_groups, :slack_client_config, :dev_channel_redirect_prefix
+    attr_reader :dev_channel, :error_channel, :channels, :user_groups, :slack_client_config, :dev_channel_redirect_prefix
 
     def initialize(token:, dev_channel: nil, error_channel: nil, channels: {}, user_groups: {}, slack_client_config: {}, dev_channel_redirect_prefix: nil)
       @token = token
@@ -51,6 +51,10 @@ module SlackOutbox
       group_id = user_groups[:slack_development] unless SlackOutbox.config.in_production?
 
       ::Slack::Messages::Formatting.group_link(group_id)
+    end
+
+    def token
+      @profile_token ||= @token.respond_to?(:call) ? @token.call : @token
     end
   end
 end
