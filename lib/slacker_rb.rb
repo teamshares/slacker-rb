@@ -38,6 +38,8 @@ module Slacker
       ProfileRegistry.find(name)
     end
 
+    def [](name) = profile(name)
+
     def default_profile
       ProfileRegistry.find(:default)
     rescue ProfileNotFound
