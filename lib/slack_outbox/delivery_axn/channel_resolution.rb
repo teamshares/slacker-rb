@@ -29,7 +29,7 @@ module SlackOutbox
       # TODO: this is directionally correct, but more-correct would involve conversations.list
       def is_channel_id?(given) = given[0] != "#" && given.match?(/\A[CGD][A-Z0-9]+\z/) # rubocop:disable Naming/PredicatePrefix
 
-      def default_dev_channel_redirect_prefix = "_:test_tube: This is a test. Would have been sent to %s in production. :test_tube:"
+      def default_dev_channel_redirect_prefix = ":construction: _This message would have been sent to `%s` in production_"
 
       def dev_channel_redirect_prefix
         format(profile.dev_channel_redirect_prefix.presence || default_dev_channel_redirect_prefix, channel_display)

@@ -268,7 +268,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
           expect(client_dbl).to receive(:chat_postMessage).with(
             hash_including(
               channel: profile.channels[:slack_development],
-              text: a_string_matching(/test.*tube.*Would have been sent to.*#{channel}.*production/m),
+              text: a_string_matching(/:construction:.*This message would have been sent to.*#{channel}.*in production/m),
             ),
           )
 
@@ -460,7 +460,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
       it "replaces %s in dev_channel_redirect_prefix with channel link" do
         expect(client_dbl).to receive(:chat_postMessage).with(
           hash_including(
-            text: a_string_matching(/Would have been sent to <#C123456> in production/m),
+            text: a_string_matching(/:construction:.*This message would have been sent to.*<#C123456>.*in production/m),
           ),
         )
 
