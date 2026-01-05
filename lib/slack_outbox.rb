@@ -38,6 +38,10 @@ module SlackOutbox
       ProfileRegistry.find(name)
     end
 
+    def [](name)
+      ProfileRegistry.find(name)
+    end
+
     def default_profile
       ProfileRegistry.find(:default)
     rescue ProfileNotFound
