@@ -123,9 +123,9 @@ RSpec.describe SlackOutbox::DeliveryAxn do
       context "with nil emoji" do
         let(:icon_emoji) { nil }
 
-        it "passes nil" do
+        it "omits icon_emoji parameter" do
           expect(client_dbl).to receive(:chat_postMessage).with(
-            hash_including(icon_emoji: nil),
+            hash_excluding(:icon_emoji),
           )
           expect(result).to be_ok
         end
@@ -250,12 +250,7 @@ RSpec.describe SlackOutbox::DeliveryAxn do
 
         it "posts to actual channel with actual text" do
           expect(client_dbl).to receive(:chat_postMessage).with(
-            channel:,
-            text:,
-            blocks: nil,
-            attachments: nil,
-            icon_emoji: nil,
-            thread_ts: nil,
+            hash_including(channel:, text:),
           )
 
           expect(result).to be_ok
@@ -271,12 +266,10 @@ RSpec.describe SlackOutbox::DeliveryAxn do
 
         it "posts to dev channel with wrapped text" do
           expect(client_dbl).to receive(:chat_postMessage).with(
-            channel: profile.channels[:slack_development],
-            text: a_string_matching(/test.*tube.*Would have been sent to.*#{channel}.*production/m),
-            blocks: nil,
-            attachments: nil,
-            icon_emoji: nil,
-            thread_ts: nil,
+            hash_including(
+              channel: profile.channels[:slack_development],
+              text: a_string_matching(/test.*tube.*Would have been sent to.*#{channel}.*production/m),
+            ),
           )
 
           expect(result).to be_ok
@@ -301,12 +294,10 @@ RSpec.describe SlackOutbox::DeliveryAxn do
 
           it "uses custom prefix and formats channel_display correctly" do
             expect(client_dbl).to receive(:chat_postMessage).with(
-              channel: profile.channels[:slack_development],
-              text: a_string_matching(/🚧 DEV MODE: Would have gone to.*#{channel}.*🚧/m),
-              blocks: nil,
-              attachments: nil,
-              icon_emoji: nil,
-              thread_ts: nil,
+              hash_including(
+                channel: profile.channels[:slack_development],
+                text: a_string_matching(/🚧 DEV MODE: Would have gone to.*#{channel}.*🚧/m),
+              ),
             )
 
             expect(result).to be_ok

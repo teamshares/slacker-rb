@@ -72,14 +72,16 @@ module SlackOutbox
     end
 
     def post_message
-      response = client.chat_postMessage(
+      params = {
         channel: channel_to_use,
         text: text_to_use,
-        blocks:,
-        attachments:,
-        icon_emoji:,
-        thread_ts:,
-      )
+      }
+      params[:blocks] = blocks if blocks.present?
+      params[:attachments] = attachments if attachments.present?
+      params[:icon_emoji] = icon_emoji if icon_emoji.present?
+      params[:thread_ts] = thread_ts if thread_ts.present?
+
+      response = client.chat_postMessage(**params)
       expose thread_ts: response["ts"]
     end
   end
