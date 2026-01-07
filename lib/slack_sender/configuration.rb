@@ -5,11 +5,12 @@ module SlackSender
     SUPPORTED_ASYNC_BACKENDS = %i[sidekiq active_job].freeze
 
     attr_writer :in_production
-    attr_accessor :enabled, :ignore_archived_errors
+    attr_accessor :enabled, :ignore_archived_errors, :error_notifier, :max_background_file_size
 
-    puts "enabled 1: #{@enabled.inspect}"
-    @enabled = true if @enabled.nil?
-    puts "enabled 2: #{@enabled.inspect}"
+    def initialize
+      # Default values
+      @enabled = true
+    end
 
     def in_production?
       return @in_production unless @in_production.nil?
@@ -58,8 +59,6 @@ module SlackSender
 
       nil
     end
-
-    attr_accessor :error_notifier, :max_background_file_size
   end
 
   class << self
