@@ -5,9 +5,7 @@ module SlackSender
     module Validation
       def self.included(base)
         base.before do
-          # Resolve channel symbol to ID using profile's channels
-          @resolved_channel = resolve_channel(channel)
-          fail! "channel must resolve to a String" unless @resolved_channel.is_a?(String)
+          possibly_validate_known_channel!
 
           fail! "Must provide at least one of: text, blocks, attachments, or files" if content_blank?
           fail! "Provided blocks were invalid" if blocks.present? && !blocks_valid?
@@ -22,10 +20,11 @@ module SlackSender
 
       private
 
-      def resolve_channel(raw)
-        return raw unless raw.is_a?(Symbol)
+      def possibly_validate_known_channel!
+        return unless validate_known_channel
 
-        profile.channels[raw] || fail!("Unknown channel: #{raw}")
+        # TODO: once Axn supports preprocessing accessing other fields, we can remove this method and use preprocess instead
+        profile.channels[channel.to_sym] || fail!("Unknown channel provided: :#{channel}")
       end
 
       def content_blank? = text.blank? && blocks.blank? && attachments.blank? && files.blank?

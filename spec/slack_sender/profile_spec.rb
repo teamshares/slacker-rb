@@ -135,6 +135,39 @@ RSpec.describe SlackSender::Profile do
         expect(profile.call(channel: "C123", text: "test")).to be true
       end
 
+      context "with symbol channel" do
+        let(:profile) do
+          described_class.new(
+            token: "SLACK_API_TOKEN",
+            dev_channel: "C01H3KU3B9P",
+            error_channel: "C03F1DMJ4PM",
+            channels: { slack_development: "C01H3KU3B9P" },
+            user_groups: { slack_development: "S123" },
+          )
+        end
+
+        it "preprocesses symbol channel to string and sets validate_known_channel" do
+          expect(SlackSender::DeliveryAxn).to receive(:call_async).with(
+            profile: "test_profile",
+            channel: "slack_development",
+            validate_known_channel: true,
+            text: "test",
+          )
+          profile.call(channel: :slack_development, text: "test")
+        end
+      end
+
+      context "with string channel" do
+        it "does not set validate_known_channel" do
+          expect(SlackSender::DeliveryAxn).to receive(:call_async).with(
+            profile: "test_profile",
+            channel: "C123",
+            text: "test",
+          )
+          profile.call(channel: "C123", text: "test")
+        end
+      end
+
       context "when profile is not registered" do
         before do
           profile.remove_instance_variable(:@registered_name) if profile.instance_variable_defined?(:@registered_name)
@@ -176,6 +209,39 @@ RSpec.describe SlackSender::Profile do
       it "calls DeliveryAxn.call! with profile" do
         expect(SlackSender::DeliveryAxn).to receive(:call!).with(profile:, channel: "C123", text: "test").and_return(result)
         expect(profile.call!(channel: "C123", text: "test")).to eq("123.456")
+      end
+
+      context "with symbol channel" do
+        let(:profile) do
+          described_class.new(
+            token: "SLACK_API_TOKEN",
+            dev_channel: "C01H3KU3B9P",
+            error_channel: "C03F1DMJ4PM",
+            channels: { slack_development: "C01H3KU3B9P" },
+            user_groups: { slack_development: "S123" },
+          )
+        end
+
+        it "preprocesses symbol channel to string and sets validate_known_channel" do
+          expect(SlackSender::DeliveryAxn).to receive(:call!).with(
+            profile:,
+            channel: "slack_development",
+            validate_known_channel: true,
+            text: "test",
+          ).and_return(result)
+          expect(profile.call!(channel: :slack_development, text: "test")).to eq("123.456")
+        end
+      end
+
+      context "with string channel" do
+        it "does not set validate_known_channel" do
+          expect(SlackSender::DeliveryAxn).to receive(:call!).with(
+            profile:,
+            channel: "C123",
+            text: "test",
+          ).and_return(result)
+          expect(profile.call!(channel: "C123", text: "test")).to eq("123.456")
+        end
       end
     end
 

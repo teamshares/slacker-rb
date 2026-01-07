@@ -28,15 +28,15 @@ RSpec.describe SlackSender::DeliveryAxn do
   end
 
   describe "expects" do
-    describe "channel preprocessing" do
+    describe "channel validation" do
       before do
         allow(SlackSender.config).to receive(:in_production?).and_return(true)
       end
 
-      context "with symbol channel key" do
-        subject(:result) { action_class.call(profile:, channel: :slack_development, text:) }
+      context "with validate_known_channel: true and known channel name" do
+        subject(:result) { action_class.call(profile:, channel: "slack_development", validate_known_channel: true, text:) }
 
-        it "resolves to channel ID" do
+        it "validates channel exists in profile and resolves to channel ID" do
           expect(client_dbl).to receive(:chat_postMessage).with(
             hash_including(channel: profile.channels[:slack_development]),
           )
@@ -45,19 +45,31 @@ RSpec.describe SlackSender::DeliveryAxn do
         end
       end
 
-      context "with unknown symbol channel key" do
-        subject(:result) { action_class.call(profile:, channel: :unknown_channel, text:) }
+      context "with validate_known_channel: true and unknown channel" do
+        subject(:result) { action_class.call(profile:, channel: "unknown_channel", validate_known_channel: true, text:) }
 
-        it "fails with preprocessing error" do
+        it "fails with validation error" do
           expect(result).not_to be_ok
-          expect(result.error).to include("Unknown channel: unknown_channel")
+          expect(result.error).to include("Unknown channel provided: :unknown_channel")
         end
       end
 
-      context "with string channel ID" do
+      context "with validate_known_channel: false" do
+        subject(:result) { action_class.call(profile:, channel: "C123456", validate_known_channel: false, text:) }
+
+        it "uses the channel ID directly without validation" do
+          expect(client_dbl).to receive(:chat_postMessage).with(
+            hash_including(channel: "C123456"),
+          )
+
+          expect(result).to be_ok
+        end
+      end
+
+      context "with validate_known_channel default (false)" do
         subject(:result) { action_class.call(profile:, channel: "C123456", text:) }
 
-        it "uses the channel ID directly" do
+        it "uses the channel ID directly without validation" do
           expect(client_dbl).to receive(:chat_postMessage).with(
             hash_including(channel: "C123456"),
           )

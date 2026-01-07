@@ -22,7 +22,8 @@ module SlackSender
       # Otherwise, assume it's already a Profile object
       p.is_a?(Profile) ? p : ProfileRegistry.find(p)
     }
-    expects :channel # Symbol or String - resolved in before block
+    expects :channel, type: String # NOTE: symbols are preprocessed in Profile#preprocess_call_kwargs
+    expects :validate_known_channel, type: :boolean, default: false
     expects :text, type: String, optional: true, preprocess: lambda { |txt|
       ::Slack::Messages::Formatting.markdown(txt) if txt.present?
     }

@@ -14,8 +14,10 @@ module SlackSender
       @dev_channel_redirect_prefix = dev_channel_redirect_prefix
     end
 
-    def call(**kwargs)
+    def call(**)
       return false unless SlackSender.config.enabled
+
+      kwargs = preprocess_call_kwargs(**)
 
       # Validate async backend is configured and available
       unless SlackSender.config.async_backend_available?
@@ -45,7 +47,8 @@ module SlackSender
     def call!(**)
       return false unless SlackSender.config.enabled
 
-      DeliveryAxn.call!(profile: self, **).thread_ts
+      kwargs = preprocess_call_kwargs(**)
+      DeliveryAxn.call!(profile: self, **kwargs).thread_ts
     end
 
     def format_group_mention(key)
@@ -62,6 +65,20 @@ module SlackSender
 
     def token
       @profile_token ||= @token.respond_to?(:call) ? @token.call : @token
+    end
+
+    private
+
+    def preprocess_call_kwargs(raw)
+      raw.dup.tap do |kwargs|
+        # User-facing interface uses symbol to indicate "known channel" and string for
+        # "arbitrary value - pass through unchecked". But internal interface passes to sidekiq,
+        # so the DeliveryAxn accepts "should validate" as a separate argument.
+        if kwargs[:channel].is_a?(Symbol)
+          kwargs[:channel] = kwargs[:channel].to_s
+          kwargs[:validate_known_channel] = true
+        end
+      end
     end
   end
 end

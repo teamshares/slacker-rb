@@ -8,7 +8,7 @@ module SlackSender
           send_error_notification <<~MSG
             *Slack Error: Not In Channel*
 
-            Attempted to send message to <##{@resolved_channel}>, but Slackbot is not connected to channel.
+            Attempted to send message to #{channel_display}, but Slackbot is not connected to channel.
 
             _Instructions:_ https://stackoverflow.com/a/68475477
           MSG
@@ -18,7 +18,7 @@ module SlackSender
           send_error_notification <<~MSG
             *Slack Error: Channel Not Found*
 
-            Attempted to send message to <##{@resolved_channel}>, but channel was not found.
+            Attempted to send message to #{channel_display}, but channel was not found.
             Check if channel was renamed or deleted.
           MSG
         end
@@ -31,7 +31,7 @@ module SlackSender
 
         detail = if error_channel.blank?
                    "NO ERROR CHANNEL CONFIGURED"
-                 elsif @resolved_channel == error_channel
+                 elsif resolved_channel == error_channel
                    "WHILE ATTEMPTING TO SEND TO CONFIGURED ERROR CHANNEL (#{error_channel})"
                  end
 
