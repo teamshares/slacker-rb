@@ -6,6 +6,10 @@ RSpec.describe SlackSender do
   end
 
   describe ".register" do
+    before do
+      SlackSender::ProfileRegistry.clear!
+    end
+
     context "when called with no positional argument (only kwargs)" do
       it "registers a named :default profile and sets it as default" do
         profile = described_class.register(
@@ -181,6 +185,8 @@ RSpec.describe SlackSender do
 
       before do
         profile
+        allow(SlackSender.config).to receive(:enabled).and_return(true)
+        allow(SlackSender.config).to receive(:async_backend_available?).and_return(true)
       end
 
       it "delegates to default_profile.call" do
@@ -191,6 +197,34 @@ RSpec.describe SlackSender do
       it "returns the result from profile.call" do
         allow(described_class.default_profile).to receive(:call).and_return(true)
         expect(described_class.call(channel: "C123", text: "test")).to be true
+      end
+
+      context "with profile parameter" do
+        let!(:other_profile) do
+          described_class.register(:other_profile,
+                                   token: "OTHER_TOKEN",
+                                   dev_channel: "C_OTHER",
+                                   channels: {},
+                                   user_groups: {})
+        end
+
+        it "allows profile parameter to override default profile" do
+          expect(SlackSender::DeliveryAxn).to receive(:call_async).with(
+            profile: "other_profile",
+            channel: "C123",
+            text: "test",
+          )
+          described_class.call(profile: :other_profile, channel: "C123", text: "test")
+        end
+
+        it "allows profile parameter as string" do
+          expect(SlackSender::DeliveryAxn).to receive(:call_async).with(
+            profile: "other_profile",
+            channel: "C123",
+            text: "test",
+          )
+          described_class.call(profile: "other_profile", channel: "C123", text: "test")
+        end
       end
     end
 

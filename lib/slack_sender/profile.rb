@@ -71,27 +71,65 @@ module SlackSender
 
     def preprocess_call_kwargs(raw)
       raw.dup.tap do |kwargs|
-        # User-facing interface uses symbol to indicate "known channel" and string for
-        # "arbitrary value - pass through unchecked". But internal interface passes to sidekiq,
-        # so the DeliveryAxn accepts "should validate" as a separate argument.
-        if kwargs[:channel].is_a?(Symbol)
-          kwargs[:channel] = kwargs[:channel].to_s
-          kwargs[:validate_known_channel] = true
-        end
+        validate_and_handle_profile_parameter!(kwargs)
+        preprocess_channel!(kwargs)
+        preprocess_blocks_and_attachments!(kwargs)
+      end
+    end
 
-        # Convert symbol keys to strings in blocks and attachments for JSON serialization
-        # This ensures they're serializable for async jobs (Sidekiq/ActiveJob)
-        if kwargs[:blocks].present?
-          kwargs[:blocks] = deep_stringify_keys(kwargs[:blocks])
-        else
-          kwargs.delete(:blocks)
-        end
+    def validate_and_handle_profile_parameter!(kwargs)
+      return unless kwargs.key?(:profile)
 
-        if kwargs[:attachments].present?
-          kwargs[:attachments] = deep_stringify_keys(kwargs[:attachments])
-        else
-          kwargs.delete(:attachments)
-        end
+      registered_name = instance_variable_get(:@registered_name)
+      requested_profile = kwargs[:profile]
+
+      # Normalize for comparison (handle both symbol and string)
+      registered_name_sym = registered_name&.to_sym
+      requested_profile_sym = requested_profile.to_sym
+
+      if registered_name_sym == :default
+        # Default profile: allow profile parameter to override (keep it in kwargs, convert to string for consistency)
+        # This enables SlackSender.call(profile: :foo) to work
+        kwargs[:profile] = requested_profile_sym.to_s
+      elsif registered_name_sym.nil?
+        # Unregistered profile: still validate to prevent confusion
+        raise ArgumentError,
+              "Cannot specify profile: :#{requested_profile_sym} when calling on unregistered profile. " \
+              "Register the profile first with SlackSender.register(name, config)"
+      elsif registered_name_sym == requested_profile_sym
+        # Non-default profile with matching profile parameter: strip it out (redundant)
+        kwargs.delete(:profile)
+      else
+        # Non-default profile with non-matching profile parameter: raise error
+        raise ArgumentError,
+              "Cannot specify profile: :#{requested_profile_sym} when calling on profile :#{registered_name_sym}. " \
+              "Use SlackSender.profile(:#{requested_profile_sym}).call(...) instead"
+      end
+    end
+
+    def preprocess_channel!(kwargs)
+      # User-facing interface uses symbol to indicate "known channel" and string for
+      # "arbitrary value - pass through unchecked". But internal interface passes to sidekiq,
+      # so the DeliveryAxn accepts "should validate" as a separate argument.
+      return unless kwargs[:channel].is_a?(Symbol)
+
+      kwargs[:channel] = kwargs[:channel].to_s
+      kwargs[:validate_known_channel] = true
+    end
+
+    def preprocess_blocks_and_attachments!(kwargs)
+      # Convert symbol keys to strings in blocks and attachments for JSON serialization
+      # This ensures they're serializable for async jobs (Sidekiq/ActiveJob)
+      if kwargs[:blocks].present?
+        kwargs[:blocks] = deep_stringify_keys(kwargs[:blocks])
+      else
+        kwargs.delete(:blocks)
+      end
+
+      if kwargs[:attachments].present?
+        kwargs[:attachments] = deep_stringify_keys(kwargs[:attachments])
+      else
+        kwargs.delete(:attachments)
       end
     end
 

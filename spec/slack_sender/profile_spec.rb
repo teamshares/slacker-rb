@@ -398,6 +398,120 @@ RSpec.describe SlackSender::Profile do
           end
         end
       end
+
+      context "with profile parameter" do
+        let(:default_profile) do
+          SlackSender.register(
+            token: "DEFAULT_TOKEN",
+            dev_channel: "C_DEFAULT",
+            channels: {},
+            user_groups: {},
+          )
+        end
+
+        let(:other_profile) do
+          SlackSender.register(:other_profile,
+                               token: "OTHER_TOKEN",
+                               dev_channel: "C_OTHER",
+                               channels: {},
+                               user_groups: {})
+        end
+
+        before do
+          SlackSender::ProfileRegistry.clear!
+          default_profile
+          other_profile
+        end
+
+        context "when called on default profile" do
+          before do
+            default_profile.instance_variable_set(:@registered_name, :default)
+          end
+
+          it "allows profile parameter to override default profile" do
+            expect(SlackSender::DeliveryAxn).to receive(:call_async).with(
+              profile: "other_profile",
+              channel: "C123",
+              text: "test",
+            )
+            default_profile.call(profile: :other_profile, channel: "C123", text: "test")
+          end
+
+          it "allows profile parameter as string" do
+            expect(SlackSender::DeliveryAxn).to receive(:call_async).with(
+              profile: "other_profile",
+              channel: "C123",
+              text: "test",
+            )
+            default_profile.call(profile: "other_profile", channel: "C123", text: "test")
+          end
+        end
+
+        context "when called on non-default profile" do
+          before do
+            profile.instance_variable_set(:@registered_name, :test_profile)
+          end
+
+          context "with matching profile parameter" do
+            it "strips out redundant profile parameter" do
+              expect(SlackSender::DeliveryAxn).to receive(:call_async).with(
+                profile: "test_profile",
+                channel: "C123",
+                text: "test",
+              )
+              profile.call(profile: :test_profile, channel: "C123", text: "test")
+            end
+
+            it "strips out redundant profile parameter when passed as string" do
+              expect(SlackSender::DeliveryAxn).to receive(:call_async).with(
+                profile: "test_profile",
+                channel: "C123",
+                text: "test",
+              )
+              profile.call(profile: "test_profile", channel: "C123", text: "test")
+            end
+          end
+
+          context "with non-matching profile parameter" do
+            it "raises an error" do
+              expect do
+                profile.call(profile: :other_profile, channel: "C123", text: "test")
+              end.to raise_error(
+                ArgumentError,
+                /Cannot specify profile: :other_profile when calling on profile :test_profile/,
+              )
+            end
+
+            it "raises an error with helpful message suggesting correct usage" do
+              expect do
+                profile.call(profile: :other_profile, channel: "C123", text: "test")
+              end.to raise_error(
+                ArgumentError,
+                /Use SlackSender.profile\(:other_profile\)\.call\(\.\.\.\) instead/,
+              )
+            end
+          end
+        end
+
+        context "when called on unregistered profile" do
+          let(:unregistered_profile) do
+            described_class.new(
+              token: "UNREG_TOKEN",
+              channels: {},
+              user_groups: {},
+            )
+          end
+
+          it "raises an error when profile parameter is specified" do
+            expect do
+              unregistered_profile.call(profile: :other_profile, channel: "C123", text: "test")
+            end.to raise_error(
+              ArgumentError,
+              /Cannot specify profile: :other_profile when calling on unregistered profile/,
+            )
+          end
+        end
+      end
     end
 
     context "when config.enabled is false" do
@@ -511,6 +625,95 @@ RSpec.describe SlackSender::Profile do
           end.and_return(result)
 
           profile.call!(channel: "C123", attachments: attachments_with_symbols)
+        end
+      end
+
+      context "with profile parameter" do
+        let(:default_profile) do
+          SlackSender.register(
+            token: "DEFAULT_TOKEN",
+            dev_channel: "C_DEFAULT",
+            channels: {},
+            user_groups: {},
+          )
+        end
+
+        let(:other_profile) do
+          SlackSender.register(:other_profile,
+                               token: "OTHER_TOKEN",
+                               dev_channel: "C_OTHER",
+                               channels: {},
+                               user_groups: {})
+        end
+
+        before do
+          SlackSender::ProfileRegistry.clear!
+          default_profile
+          other_profile
+        end
+
+        context "when called on default profile" do
+          before do
+            default_profile.instance_variable_set(:@registered_name, :default)
+          end
+
+          it "allows profile parameter to override default profile" do
+            # The profile parameter is converted to string and passed to DeliveryAxn,
+            # which will convert it to a Profile object via its preprocess
+            expect(SlackSender::DeliveryAxn).to receive(:call!).with(
+              profile: "other_profile",
+              channel: "C123",
+              text: "test",
+            ).and_return(result)
+            default_profile.call!(profile: :other_profile, channel: "C123", text: "test")
+          end
+        end
+
+        context "when called on non-default profile" do
+          before do
+            profile.instance_variable_set(:@registered_name, :test_profile)
+          end
+
+          context "with matching profile parameter" do
+            it "strips out redundant profile parameter" do
+              expect(SlackSender::DeliveryAxn).to receive(:call!).with(
+                profile:,
+                channel: "C123",
+                text: "test",
+              ).and_return(result)
+              profile.call!(profile: :test_profile, channel: "C123", text: "test")
+            end
+          end
+
+          context "with non-matching profile parameter" do
+            it "raises an error" do
+              expect do
+                profile.call!(profile: :other_profile, channel: "C123", text: "test")
+              end.to raise_error(
+                ArgumentError,
+                /Cannot specify profile: :other_profile when calling on profile :test_profile/,
+              )
+            end
+          end
+        end
+
+        context "when called on unregistered profile" do
+          let(:unregistered_profile) do
+            described_class.new(
+              token: "UNREG_TOKEN",
+              channels: {},
+              user_groups: {},
+            )
+          end
+
+          it "raises an error when profile parameter is specified" do
+            expect do
+              unregistered_profile.call!(profile: :other_profile, channel: "C123", text: "test")
+            end.to raise_error(
+              ArgumentError,
+              /Cannot specify profile: :other_profile when calling on unregistered profile/,
+            )
+          end
         end
       end
     end
