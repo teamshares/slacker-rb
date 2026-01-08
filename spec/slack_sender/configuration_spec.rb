@@ -14,37 +14,14 @@ RSpec.describe SlackSender::Configuration do
     end
   end
 
-  describe "#ignore_archived_errors" do
+  describe "#silence_archived_channel_exceptions" do
     it "defaults to nil" do
-      expect(config.ignore_archived_errors).to be_nil
+      expect(config.silence_archived_channel_exceptions).to be_nil
     end
 
     it "can be set" do
-      config.ignore_archived_errors = true
-      expect(config.ignore_archived_errors).to be true
-    end
-  end
-
-  describe "#error_notifier" do
-    it "defaults to nil" do
-      expect(config.error_notifier).to be_nil
-    end
-
-    it "can be set to a callable" do
-      notifier = ->(e, context:) { puts [e, context].inspect }
-      config.error_notifier = notifier
-      expect(config.error_notifier).to eq(notifier)
-    end
-  end
-
-  describe "#max_background_file_size" do
-    it "defaults to nil" do
-      expect(config.max_background_file_size).to be_nil
-    end
-
-    it "can be set to an integer" do
-      config.max_background_file_size = 10_000_000
-      expect(config.max_background_file_size).to eq(10_000_000)
+      config.silence_archived_channel_exceptions = true
+      expect(config.silence_archived_channel_exceptions).to be true
     end
   end
 

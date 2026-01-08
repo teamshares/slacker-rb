@@ -3,6 +3,7 @@
 RSpec.describe SlackSender::Profile do
   let(:profile) do
     described_class.new(
+      key: :test_profile,
       token: "SLACK_API_TOKEN",
       dev_channel: "C01H3KU3B9P",
       error_channel: "C03F1DMJ4PM",
@@ -21,6 +22,7 @@ RSpec.describe SlackSender::Profile do
     context "when token is a callable" do
       let(:profile) do
         described_class.new(
+          key: :test_profile,
           token: -> { ENV.fetch("SLACK_API_TOKEN") },
           dev_channel: "C01H3KU3B9P",
           error_channel: "C03F1DMJ4PM",
@@ -41,9 +43,8 @@ RSpec.describe SlackSender::Profile do
           "token-#{call_count}"
         }
         profile_with_proc = described_class.new(
+          key: :test_profile,
           token: token_proc,
-          channels: {},
-          user_groups: {},
         )
 
         expect(profile_with_proc.token).to eq("token-1")
@@ -68,10 +69,9 @@ RSpec.describe SlackSender::Profile do
     context "when dev_channel is nil" do
       let(:profile) do
         described_class.new(
+          key: :test_profile,
           token: "SLACK_API_TOKEN",
           dev_channel: nil,
-          channels: {},
-          user_groups: {},
         )
       end
 
@@ -81,14 +81,43 @@ RSpec.describe SlackSender::Profile do
     end
   end
 
+  describe "#dev_user_group" do
+    context "when dev_user_group is provided" do
+      let(:profile) do
+        described_class.new(
+          key: :test_profile,
+          token: "SLACK_API_TOKEN",
+          dev_user_group: "S_DEV_GROUP",
+        )
+      end
+
+      it "returns the dev_user_group value" do
+        expect(profile.dev_user_group).to eq("S_DEV_GROUP")
+      end
+    end
+
+    context "when dev_user_group is nil" do
+      let(:profile) do
+        described_class.new(
+          key: :test_profile,
+          token: "SLACK_API_TOKEN",
+          dev_user_group: nil,
+        )
+      end
+
+      it "returns nil" do
+        expect(profile.dev_user_group).to be_nil
+      end
+    end
+  end
+
   describe "#dev_channel_redirect_prefix" do
     context "when dev_channel_redirect_prefix is provided" do
       let(:profile) do
         described_class.new(
+          key: :test_profile,
           token: "SLACK_API_TOKEN",
           dev_channel_redirect_prefix: "Custom prefix: %s",
-          channels: {},
-          user_groups: {},
         )
       end
 
@@ -100,10 +129,9 @@ RSpec.describe SlackSender::Profile do
     context "when dev_channel_redirect_prefix is nil" do
       let(:profile) do
         described_class.new(
+          key: :test_profile,
           token: "SLACK_API_TOKEN",
           dev_channel_redirect_prefix: nil,
-          channels: {},
-          user_groups: {},
         )
       end
 
@@ -115,8 +143,8 @@ RSpec.describe SlackSender::Profile do
 
   describe "#call" do
     before do
-      # Set the registered_name on the profile instance
-      profile.instance_variable_set(:@registered_name, :test_profile)
+      # Register the profile in the registry
+      SlackSender::ProfileRegistry.all[profile.key] = profile
       allow(SlackSender.config).to receive(:async_backend_available?).and_return(true)
     end
 
@@ -138,6 +166,7 @@ RSpec.describe SlackSender::Profile do
       context "with symbol channel" do
         let(:profile) do
           described_class.new(
+            key: :test_profile,
             token: "SLACK_API_TOKEN",
             dev_channel: "C01H3KU3B9P",
             error_channel: "C03F1DMJ4PM",
@@ -332,7 +361,7 @@ RSpec.describe SlackSender::Profile do
 
       context "when profile is not registered" do
         before do
-          profile.remove_instance_variable(:@registered_name) if profile.instance_variable_defined?(:@registered_name)
+          SlackSender::ProfileRegistry.all.delete(profile.key)
         end
 
         it "raises an error" do
@@ -356,45 +385,110 @@ RSpec.describe SlackSender::Profile do
         end
       end
 
-      context "with files" do
-        let(:file1) { StringIO.new("x" * 500) }
-        let(:file2) { StringIO.new("y" * 600) }
+      context "with profile parameter" do
+        let(:default_profile) do
+          SlackSender.register(
+            token: "DEFAULT_TOKEN",
+            dev_channel: "C_DEFAULT",
+          )
+        end
 
-        context "when total file size exceeds max_background_file_size" do
-          before do
-            allow(SlackSender.config).to receive(:max_background_file_size).and_return(1000)
+        let(:other_profile) do
+          SlackSender.register(:other_profile,
+                               token: "OTHER_TOKEN",
+                               dev_channel: "C_OTHER")
+        end
+
+        before do
+          SlackSender::ProfileRegistry.clear!
+          default_profile
+          other_profile
+        end
+
+        context "when called on default profile" do
+          # default_profile is already registered via SlackSender.register
+
+          it "allows profile parameter to override default profile" do
+            expect(SlackSender::DeliveryAxn).to receive(:call_async).with(
+              profile: "other_profile",
+              channel: "C123",
+              text: "test",
+            )
+            default_profile.call(profile: :other_profile, channel: "C123", text: "test")
           end
 
-          it "raises an error about file size limit" do
-            expect { profile.call(channel: "C123", text: "test", files: [file1, file2]) }.to raise_error(
-              SlackSender::Error,
-              /Total file size \(1100 bytes\) exceeds configured limit \(1000 bytes\)/,
+          it "allows profile parameter as string" do
+            expect(SlackSender::DeliveryAxn).to receive(:call_async).with(
+              profile: "other_profile",
+              channel: "C123",
+              text: "test",
+            )
+            default_profile.call(profile: "other_profile", channel: "C123", text: "test")
+          end
+        end
+
+        context "when called on non-default profile" do
+          before do
+            # Register the profile in the registry
+            SlackSender::ProfileRegistry.all[profile.key] = profile
+          end
+
+          context "with matching profile parameter" do
+            it "strips out redundant profile parameter" do
+              expect(SlackSender::DeliveryAxn).to receive(:call_async).with(
+                profile: "test_profile",
+                channel: "C123",
+                text: "test",
+              )
+              profile.call(profile: :test_profile, channel: "C123", text: "test")
+            end
+
+            it "strips out redundant profile parameter when passed as string" do
+              expect(SlackSender::DeliveryAxn).to receive(:call_async).with(
+                profile: "test_profile",
+                channel: "C123",
+                text: "test",
+              )
+              profile.call(profile: "test_profile", channel: "C123", text: "test")
+            end
+          end
+
+          context "with non-matching profile parameter" do
+            it "raises an error" do
+              expect do
+                profile.call(profile: :other_profile, channel: "C123", text: "test")
+              end.to raise_error(
+                ArgumentError,
+                /Cannot specify profile: :other_profile when calling on profile :test_profile/,
+              )
+            end
+
+            it "raises an error with helpful message suggesting correct usage" do
+              expect do
+                profile.call(profile: :other_profile, channel: "C123", text: "test")
+              end.to raise_error(
+                ArgumentError,
+                /Use SlackSender.profile\(:other_profile\)\.call\(\.\.\.\) instead/,
+              )
+            end
+          end
+        end
+
+        context "when called on unregistered profile" do
+          let(:unregistered_profile) do
+            described_class.new(
+              key: :unregistered_profile,
+              token: "UNREG_TOKEN",
             )
           end
-        end
 
-        context "when total file size is within max_background_file_size" do
-          before do
-            allow(SlackSender.config).to receive(:max_background_file_size).and_return(2000)
-            allow(SlackSender::DeliveryAxn).to receive(:call_async)
-          end
-
-          it "proceeds with async call" do
-            expect(SlackSender::DeliveryAxn).to receive(:call_async)
-            profile.call(channel: "C123", text: "test", files: [file1, file2])
-          end
-        end
-
-        context "when max_background_file_size is nil (no limit)" do
-          before do
-            allow(SlackSender.config).to receive(:max_background_file_size).and_return(nil)
-            allow(SlackSender::DeliveryAxn).to receive(:call_async)
-          end
-
-          it "proceeds with async call regardless of size" do
-            large_file = StringIO.new("x" * 10_000_000)
-            expect(SlackSender::DeliveryAxn).to receive(:call_async)
-            profile.call(channel: "C123", text: "test", files: [large_file])
+          it "raises an error when profile parameter is specified" do
+            expect do
+              unregistered_profile.call(profile: :other_profile, channel: "C123", text: "test")
+            end.to raise_error(
+              ArgumentError,
+              /Cannot specify profile: :other_profile when calling on unregistered profile/,
+            )
           end
         end
       end
@@ -432,6 +526,7 @@ RSpec.describe SlackSender::Profile do
       context "with symbol channel" do
         let(:profile) do
           described_class.new(
+            key: :test_profile,
             token: "SLACK_API_TOKEN",
             dev_channel: "C01H3KU3B9P",
             error_channel: "C03F1DMJ4PM",
@@ -513,6 +608,89 @@ RSpec.describe SlackSender::Profile do
           profile.call!(channel: "C123", attachments: attachments_with_symbols)
         end
       end
+
+      context "with profile parameter" do
+        let(:default_profile) do
+          SlackSender.register(
+            token: "DEFAULT_TOKEN",
+            dev_channel: "C_DEFAULT",
+          )
+        end
+
+        let(:other_profile) do
+          SlackSender.register(:other_profile,
+                               token: "OTHER_TOKEN",
+                               dev_channel: "C_OTHER")
+        end
+
+        before do
+          SlackSender::ProfileRegistry.clear!
+          default_profile
+          other_profile
+        end
+
+        context "when called on default profile" do
+          # default_profile is already registered via SlackSender.register
+
+          it "allows profile parameter to override default profile" do
+            # The profile parameter is converted to string and passed to DeliveryAxn,
+            # which will convert it to a Profile object via its preprocess
+            expect(SlackSender::DeliveryAxn).to receive(:call!).with(
+              profile: "other_profile",
+              channel: "C123",
+              text: "test",
+            ).and_return(result)
+            default_profile.call!(profile: :other_profile, channel: "C123", text: "test")
+          end
+        end
+
+        context "when called on non-default profile" do
+          before do
+            # Register the profile in the registry
+            SlackSender::ProfileRegistry.all[profile.key] = profile
+          end
+
+          context "with matching profile parameter" do
+            it "strips out redundant profile parameter" do
+              expect(SlackSender::DeliveryAxn).to receive(:call!).with(
+                profile:,
+                channel: "C123",
+                text: "test",
+              ).and_return(result)
+              profile.call!(profile: :test_profile, channel: "C123", text: "test")
+            end
+          end
+
+          context "with non-matching profile parameter" do
+            it "raises an error" do
+              expect do
+                profile.call!(profile: :other_profile, channel: "C123", text: "test")
+              end.to raise_error(
+                ArgumentError,
+                /Cannot specify profile: :other_profile when calling on profile :test_profile/,
+              )
+            end
+          end
+        end
+
+        context "when called on unregistered profile" do
+          let(:unregistered_profile) do
+            described_class.new(
+              key: :unregistered_profile,
+              token: "UNREG_TOKEN",
+            )
+          end
+
+          it "raises an error when profile parameter is specified" do
+            expect do
+              unregistered_profile.call!(profile: :other_profile, channel: "C123", text: "test")
+            end.to raise_error(
+              ArgumentError,
+              /Cannot specify profile: :other_profile when calling on unregistered profile/,
+            )
+          end
+        end
+      end
     end
 
     context "when config.enabled is false" do
@@ -542,9 +720,9 @@ RSpec.describe SlackSender::Profile do
       context "with symbol key" do
         let(:profile) do
           described_class.new(
+            key: :test_profile,
             token: "SLACK_API_TOKEN",
             user_groups: { eng_team: "S123ABC" },
-            channels: {},
           )
         end
 
@@ -563,6 +741,23 @@ RSpec.describe SlackSender::Profile do
         end
       end
 
+      context "with dev_user_group configured" do
+        let(:profile) do
+          described_class.new(
+            key: :test_profile,
+            token: "SLACK_API_TOKEN",
+            dev_user_group: "S_DEV_GROUP",
+            user_groups: { eng_team: "S123ABC" },
+          )
+        end
+
+        it "ignores dev_user_group and returns requested group link" do
+          result = profile.format_group_mention(:eng_team)
+
+          expect(result).to eq("<!subteam^S123ABC>")
+        end
+      end
+
       context "with unknown symbol key" do
         it "raises error" do
           expect { profile.format_group_mention(:unknown_group) }.to raise_error("Unknown user group: unknown_group")
@@ -573,48 +768,64 @@ RSpec.describe SlackSender::Profile do
     context "not in production" do
       let(:production?) { false }
 
-      context "with symbol key" do
+      context "with dev_user_group configured" do
         let(:profile) do
           described_class.new(
+            key: :test_profile,
             token: "SLACK_API_TOKEN",
-            user_groups: {
-              eng_team: "S123ABC",
-              slack_development: "S_DEV_GROUP",
-            },
-            channels: {},
-          )
-        end
-
-        it "returns dev group link instead of requested group" do
-          result = profile.format_group_mention(:eng_team)
-
-          expect(result).to eq("<!subteam^S_DEV_GROUP>")
-        end
-      end
-
-      context "with string ID" do
-        it "returns dev group link instead of requested ID" do
-          result = profile.format_group_mention("S123ABC")
-
-          expect(result).to eq("<!subteam^#{profile.user_groups[:slack_development]}>")
-        end
-      end
-
-      context "when slack_development user group is not configured" do
-        let(:profile) do
-          described_class.new(
-            token: "SLACK_API_TOKEN",
+            dev_user_group: "S_DEV_GROUP",
             user_groups: { eng_team: "S123ABC" },
-            channels: {},
           )
         end
 
-        it "uses nil group_id and formats it as empty subteam link" do
+        context "with symbol key" do
+          it "returns dev_user_group link instead of requested group" do
+            result = profile.format_group_mention(:eng_team)
+
+            expect(result).to eq("<!subteam^S_DEV_GROUP>")
+          end
+        end
+
+        context "with string ID" do
+          it "returns dev_user_group link instead of requested ID" do
+            result = profile.format_group_mention("S123ABC")
+
+            expect(result).to eq("<!subteam^S_DEV_GROUP>")
+          end
+        end
+      end
+
+      context "when dev_user_group is not configured" do
+        let(:profile) do
+          described_class.new(
+            key: :test_profile,
+            token: "SLACK_API_TOKEN",
+            dev_user_group: nil,
+            user_groups: { eng_team: "S123ABC" },
+          )
+        end
+
+        it "returns the requested group link" do
           result = profile.format_group_mention(:eng_team)
 
-          # When slack_development is missing, group_id becomes nil
-          # Slack::Messages::Formatting.group_link(nil) returns "<!subteam^>"
-          expect(result).to eq("<!subteam^>")
+          expect(result).to eq("<!subteam^S123ABC>")
+        end
+      end
+
+      context "when dev_user_group is empty string" do
+        let(:profile) do
+          described_class.new(
+            key: :test_profile,
+            token: "SLACK_API_TOKEN",
+            dev_user_group: "",
+            user_groups: { eng_team: "S123ABC" },
+          )
+        end
+
+        it "returns the requested group link (empty string is not present)" do
+          result = profile.format_group_mention(:eng_team)
+
+          expect(result).to eq("<!subteam^S123ABC>")
         end
       end
     end
