@@ -107,6 +107,15 @@ SlackSender.call(
 )
 ```
 
+**Note:** Text is parsed as [Slack mrkdwn](https://api.slack.com/reference/surfaces/formatting) by default. For formatting user mentions, channels, links, and other special content, use the `Slack::Messages::Formatting` helpers from [slack-ruby-client](https://github.com/slack-ruby/slack-ruby-client#message-formatting):
+
+```ruby
+SlackSender.call(
+  channel: :alerts,
+  text: "Alert from #{Slack::Messages::Formatting.user(user.slack_id)}: check #{Slack::Messages::Formatting.url('https://example.com', 'this link')}"
+)
+```
+
 ### Channel Resolution
 
 Channels can be specified as symbols (resolved from profile config) or channel IDs:
