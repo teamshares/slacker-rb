@@ -8,6 +8,7 @@ gemspec
 # Development dependencies
 gem "rspec", "~> 3.0"
 gem "sidekiq"
+gem "factory_bot", "~> 6.0"
 
 # Misc/default
 gem "irb"

@@ -1,16 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe SlackSender::Profile do
-  let(:profile) do
-    described_class.new(
-      key: :test_profile,
-      token: "SLACK_API_TOKEN",
-      dev_channel: "C01H3KU3B9P",
-      error_channel: "C03F1DMJ4PM",
-      channels: { slack_development: "C01H3KU3B9P" },
-      user_groups: { slack_development: "S123" },
-    )
-  end
+  let(:profile) { build(:profile) }
 
   describe "#token" do
     context "when token is a string" do
@@ -20,16 +11,7 @@ RSpec.describe SlackSender::Profile do
     end
 
     context "when token is a callable" do
-      let(:profile) do
-        described_class.new(
-          key: :test_profile,
-          token: -> { ENV.fetch("SLACK_API_TOKEN") },
-          dev_channel: "C01H3KU3B9P",
-          error_channel: "C03F1DMJ4PM",
-          channels: { slack_development: "C01H3KU3B9P" },
-          user_groups: { slack_development: "S123" },
-        )
-      end
+      let(:profile) { build(:profile, token: -> { ENV.fetch("SLACK_API_TOKEN") }) }
 
       it "calls the callable and returns the result" do
         allow(ENV).to receive(:fetch).with("SLACK_API_TOKEN").and_return("xoxb-lazy-token")
@@ -42,10 +24,7 @@ RSpec.describe SlackSender::Profile do
           call_count += 1
           "token-#{call_count}"
         }
-        profile_with_proc = described_class.new(
-          key: :test_profile,
-          token: token_proc,
-        )
+        profile_with_proc = build(:profile, token: token_proc)
 
         expect(profile_with_proc.token).to eq("token-1")
         expect(profile_with_proc.token).to eq("token-1")
@@ -67,13 +46,7 @@ RSpec.describe SlackSender::Profile do
     end
 
     context "when dev_channel is nil" do
-      let(:profile) do
-        described_class.new(
-          key: :test_profile,
-          token: "SLACK_API_TOKEN",
-          dev_channel: nil,
-        )
-      end
+      let(:profile) { build(:profile, dev_channel: nil) }
 
       it "returns nil" do
         expect(profile.dev_channel).to be_nil
@@ -83,13 +56,7 @@ RSpec.describe SlackSender::Profile do
 
   describe "#dev_user_group" do
     context "when dev_user_group is provided" do
-      let(:profile) do
-        described_class.new(
-          key: :test_profile,
-          token: "SLACK_API_TOKEN",
-          dev_user_group: "S_DEV_GROUP",
-        )
-      end
+      let(:profile) { build(:profile, dev_user_group: "S_DEV_GROUP") }
 
       it "returns the dev_user_group value" do
         expect(profile.dev_user_group).to eq("S_DEV_GROUP")
@@ -97,14 +64,6 @@ RSpec.describe SlackSender::Profile do
     end
 
     context "when dev_user_group is nil" do
-      let(:profile) do
-        described_class.new(
-          key: :test_profile,
-          token: "SLACK_API_TOKEN",
-          dev_user_group: nil,
-        )
-      end
-
       it "returns nil" do
         expect(profile.dev_user_group).to be_nil
       end
@@ -113,13 +72,7 @@ RSpec.describe SlackSender::Profile do
 
   describe "#dev_channel_redirect_prefix" do
     context "when dev_channel_redirect_prefix is provided" do
-      let(:profile) do
-        described_class.new(
-          key: :test_profile,
-          token: "SLACK_API_TOKEN",
-          dev_channel_redirect_prefix: "Custom prefix: %s",
-        )
-      end
+      let(:profile) { build(:profile, dev_channel_redirect_prefix: "Custom prefix: %s") }
 
       it "returns the dev_channel_redirect_prefix value" do
         expect(profile.dev_channel_redirect_prefix).to eq("Custom prefix: %s")
@@ -127,14 +80,6 @@ RSpec.describe SlackSender::Profile do
     end
 
     context "when dev_channel_redirect_prefix is nil" do
-      let(:profile) do
-        described_class.new(
-          key: :test_profile,
-          token: "SLACK_API_TOKEN",
-          dev_channel_redirect_prefix: nil,
-        )
-      end
-
       it "returns nil" do
         expect(profile.dev_channel_redirect_prefix).to be_nil
       end
@@ -164,17 +109,6 @@ RSpec.describe SlackSender::Profile do
       end
 
       context "with symbol channel" do
-        let(:profile) do
-          described_class.new(
-            key: :test_profile,
-            token: "SLACK_API_TOKEN",
-            dev_channel: "C01H3KU3B9P",
-            error_channel: "C03F1DMJ4PM",
-            channels: { slack_development: "C01H3KU3B9P" },
-            user_groups: { slack_development: "S123" },
-          )
-        end
-
         it "preprocesses symbol channel to string and sets validate_known_channel" do
           expect(SlackSender::DeliveryAxn).to receive(:call_async).with(
             profile: "test_profile",
@@ -475,12 +409,7 @@ RSpec.describe SlackSender::Profile do
         end
 
         context "when called on unregistered profile" do
-          let(:unregistered_profile) do
-            described_class.new(
-              key: :unregistered_profile,
-              token: "UNREG_TOKEN",
-            )
-          end
+          let(:unregistered_profile) { build(:profile, key: :unregistered_profile, token: "UNREG_TOKEN") }
 
           it "raises an error when profile parameter is specified" do
             expect do
@@ -524,17 +453,6 @@ RSpec.describe SlackSender::Profile do
       end
 
       context "with symbol channel" do
-        let(:profile) do
-          described_class.new(
-            key: :test_profile,
-            token: "SLACK_API_TOKEN",
-            dev_channel: "C01H3KU3B9P",
-            error_channel: "C03F1DMJ4PM",
-            channels: { slack_development: "C01H3KU3B9P" },
-            user_groups: { slack_development: "S123" },
-          )
-        end
-
         it "preprocesses symbol channel to string and sets validate_known_channel" do
           expect(SlackSender::DeliveryAxn).to receive(:call!).with(
             profile:,
@@ -674,12 +592,7 @@ RSpec.describe SlackSender::Profile do
         end
 
         context "when called on unregistered profile" do
-          let(:unregistered_profile) do
-            described_class.new(
-              key: :unregistered_profile,
-              token: "UNREG_TOKEN",
-            )
-          end
+          let(:unregistered_profile) { build(:profile, key: :unregistered_profile, token: "UNREG_TOKEN") }
 
           it "raises an error when profile parameter is specified" do
             expect do
@@ -718,13 +631,7 @@ RSpec.describe SlackSender::Profile do
       let(:production?) { true }
 
       context "with symbol key" do
-        let(:profile) do
-          described_class.new(
-            key: :test_profile,
-            token: "SLACK_API_TOKEN",
-            user_groups: { eng_team: "S123ABC" },
-          )
-        end
+        let(:profile) { build(:profile, user_groups: { eng_team: "S123ABC" }) }
 
         it "returns formatted group link for user group symbol" do
           result = profile.format_group_mention(:eng_team)
@@ -742,14 +649,7 @@ RSpec.describe SlackSender::Profile do
       end
 
       context "with dev_user_group configured" do
-        let(:profile) do
-          described_class.new(
-            key: :test_profile,
-            token: "SLACK_API_TOKEN",
-            dev_user_group: "S_DEV_GROUP",
-            user_groups: { eng_team: "S123ABC" },
-          )
-        end
+        let(:profile) { build(:profile, dev_user_group: "S_DEV_GROUP", user_groups: { eng_team: "S123ABC" }) }
 
         it "ignores dev_user_group and returns requested group link" do
           result = profile.format_group_mention(:eng_team)
@@ -769,14 +669,7 @@ RSpec.describe SlackSender::Profile do
       let(:production?) { false }
 
       context "with dev_user_group configured" do
-        let(:profile) do
-          described_class.new(
-            key: :test_profile,
-            token: "SLACK_API_TOKEN",
-            dev_user_group: "S_DEV_GROUP",
-            user_groups: { eng_team: "S123ABC" },
-          )
-        end
+        let(:profile) { build(:profile, dev_user_group: "S_DEV_GROUP", user_groups: { eng_team: "S123ABC" }) }
 
         context "with symbol key" do
           it "returns dev_user_group link instead of requested group" do
@@ -796,14 +689,7 @@ RSpec.describe SlackSender::Profile do
       end
 
       context "when dev_user_group is not configured" do
-        let(:profile) do
-          described_class.new(
-            key: :test_profile,
-            token: "SLACK_API_TOKEN",
-            dev_user_group: nil,
-            user_groups: { eng_team: "S123ABC" },
-          )
-        end
+        let(:profile) { build(:profile, dev_user_group: nil, user_groups: { eng_team: "S123ABC" }) }
 
         it "returns the requested group link" do
           result = profile.format_group_mention(:eng_team)
@@ -813,14 +699,7 @@ RSpec.describe SlackSender::Profile do
       end
 
       context "when dev_user_group is empty string" do
-        let(:profile) do
-          described_class.new(
-            key: :test_profile,
-            token: "SLACK_API_TOKEN",
-            dev_user_group: "",
-            user_groups: { eng_team: "S123ABC" },
-          )
-        end
+        let(:profile) { build(:profile, dev_user_group: "", user_groups: { eng_team: "S123ABC" }) }
 
         it "returns the requested group link (empty string is not present)" do
           result = profile.format_group_mention(:eng_team)

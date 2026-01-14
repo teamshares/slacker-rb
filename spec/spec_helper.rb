@@ -2,6 +2,7 @@
 
 require "bundler/setup"
 require "sidekiq"
+require "factory_bot"
 Bundler.require(:default, :development)
 
 require "slack_sender"
@@ -15,5 +16,12 @@ RSpec.configure do |config|
 
   config.expect_with :rspec do |c|
     c.syntax = :expect
+  end
+
+  # FactoryBot configuration
+  config.include FactoryBot::Syntax::Methods
+
+  config.before(:suite) do
+    FactoryBot.find_definitions
   end
 end

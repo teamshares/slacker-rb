@@ -3,21 +3,7 @@
 require "csv"
 
 RSpec.describe SlackSender::DeliveryAxn do
-  let(:profile) do
-    SlackSender::Profile.new(
-      key: :test_profile,
-      token: "SLACK_API_TOKEN",
-      dev_channel: "C01H3KU3B9P",
-      error_channel: "C03F1DMJ4PM",
-      channels: {
-        slack_development: "C01H3KU3B9P",
-        eng_alerts: "C03F1DMJ4PM",
-      },
-      user_groups: {
-        slack_development: "SLACK_DEV_TEST_USER_GROUP_HANDLE",
-      },
-    )
-  end
+  let(:profile) { build(:profile, user_groups: { slack_development: "SLACK_DEV_TEST_USER_GROUP_HANDLE" }) }
   let(:action_class) { SlackSender::DeliveryAxn }
   let(:channel) { "C01H3KU3B9P" }
   let(:text) { "Hello, World!" }
@@ -291,22 +277,7 @@ RSpec.describe SlackSender::DeliveryAxn do
         end
 
         context "with custom dev_channel_redirect_prefix" do
-          let(:profile) do
-            SlackSender::Profile.new(
-              key: :test_profile,
-              token: "SLACK_API_TOKEN",
-              dev_channel: "C01H3KU3B9P",
-              error_channel: "C03F1DMJ4PM",
-              channels: {
-                slack_development: "C01H3KU3B9P",
-                eng_alerts: "C03F1DMJ4PM",
-              },
-              user_groups: {
-                slack_development: "SLACK_DEV_TEST_USER_GROUP_HANDLE",
-              },
-              dev_channel_redirect_prefix: "🚧 DEV MODE: Would have gone to %s 🚧",
-            )
-          end
+          let(:profile) { build(:profile, dev_channel_redirect_prefix: "🚧 DEV MODE: Would have gone to %s 🚧") }
 
           it "uses custom prefix and formats channel_display correctly" do
             expect(client_dbl).to receive(:chat_postMessage).with(
@@ -492,15 +463,7 @@ RSpec.describe SlackSender::DeliveryAxn do
       end
 
       context "when error_channel is nil" do
-        let(:profile_without_error_channel) do
-          SlackSender::Profile.new(
-            key: :test_profile,
-            token: "SLACK_API_TOKEN",
-            dev_channel: "C01H3KU3B9P",
-            error_channel: nil,
-            channels: { slack_development: "C01H3KU3B9P" },
-          )
-        end
+        let(:profile_without_error_channel) { build(:profile, error_channel: nil) }
         subject(:result) { action_class.call!(profile: profile_without_error_channel, channel:, text:) }
 
         before do
@@ -750,22 +713,7 @@ RSpec.describe SlackSender::DeliveryAxn do
     end
 
     context "with custom dev_channel_redirect_prefix" do
-      let(:profile) do
-        SlackSender::Profile.new(
-          key: :test_profile,
-          token: "SLACK_API_TOKEN",
-          dev_channel: "C01H3KU3B9P",
-          error_channel: "C03F1DMJ4PM",
-          channels: {
-            slack_development: "C01H3KU3B9P",
-            eng_alerts: "C03F1DMJ4PM",
-          },
-          user_groups: {
-            slack_development: "SLACK_DEV_TEST_USER_GROUP_HANDLE",
-          },
-          dev_channel_redirect_prefix: "Test prefix with %s replacement",
-        )
-      end
+      let(:profile) { build(:profile, dev_channel_redirect_prefix: "Test prefix with %s replacement") }
 
       it "replaces %s with channel_display value" do
         expect(client_dbl).to receive(:chat_postMessage).with(
